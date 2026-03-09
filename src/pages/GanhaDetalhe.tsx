@@ -2,8 +2,9 @@ import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, FileText, Receipt, Calculator, ScrollText,
-  Users, DollarSign, Fuel, Truck, TrendingUp, TrendingDown, FileDown, RefreshCw, Wrench, Upload, Save, ClipboardList,
+  DollarSign, Truck, TrendingUp, TrendingDown, FileDown, RefreshCw, Wrench, Upload, Save, ClipboardList, Trash2, Paperclip,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +18,7 @@ import { BudgetTab } from "@/components/BudgetTab";
 import { DailyServicesTab } from "@/components/DailyServicesTab";
 import { WonItemsSection } from "@/components/WonItemsSection";
 import { toast } from "sonner";
-import { useBiddings, useWonItems, useCreatePricingScenario } from "@/hooks/useSupabaseData";
+import { useBiddings, useWonItems, useCreatePricingScenario, useBiddingAttachments, useCreateBiddingAttachment, useDeleteBiddingAttachment } from "@/hooks/useSupabaseData";
 import type { WonItemsData } from "@/components/WonItemsSection";
 
 interface PricingInputs {
@@ -49,10 +50,38 @@ export default function GanhaDetalhe() {
   const { data: biddings } = useBiddings();
   const { data: wonItemsData } = useWonItems(id || "");
   const createScenario = useCreatePricingScenario();
+  const { data: attachments = [] } = useBiddingAttachments(id || "");
+  const createAttachment = useCreateBiddingAttachment();
+  const deleteAttachment = useDeleteBiddingAttachment();
+
   const [inputs, setInputs] = useState<PricingInputs>(defaultInputs);
   const [wonData, setWonData] = useState<WonItemsData | null>(null);
 
   const bidding = biddings?.find((b) => b.id === id);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${id}/${Math.random()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('documents').upload(fileName, file);
+      
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(fileName);
+
+      createAttachment.mutate({
+        bidding_id: id,
+        name: file.name,
+        url: publicUrl,
+        type: 'documento'
+      });
+    } catch (error: any) {
+      toast.error("Erro ao fazer upload: " + error.message);
+    }
+  };
 
   const updateInput = useCallback((key: keyof PricingInputs, value: string) => {
     setInputs((prev) => ({ ...prev, [key]: parseFloat(value) || 0 }));
@@ -178,6 +207,46 @@ export default function GanhaDetalhe() {
                 </div>
               </CardContent>
             </Card>
+            
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Anexos e Contratos</CardTitle>
+                <div>
+                  <Input 
+                    type="file" 
+                    className="hidden" 
+                    id="file-upload" 
+                    onChange={handleFileUpload} 
+                  />
+                  <Label htmlFor="file-upload" className="cursor-pointer">
+                    <div className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3">
+                      <Upload className="h-3.5 w-3.5 mr-2" />Adicionar
+                    </div>
+                  </Label>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {attachments.length === 0 ? (
+                  <div className="h-[100px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                    <p>Nenhum documento anexado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {attachments.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 border hover:bg-muted transition-colors">
+                         <div className="flex items-center gap-2 overflow-hidden">
+                            <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-sm truncate hover:underline text-foreground">{file.name}</a>
+                         </div>
+                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteAttachment.mutate(file.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                         </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
           <WonItemsSection biddingId={id!} onSave={setWonData} initialData={wonItemsData} />
         </TabsContent>
@@ -203,9 +272,7 @@ export default function GanhaDetalhe() {
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
               <div className="space-y-4">
-                <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Custos de Pessoal</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><InputField label="Salário Motorista" field="salarioMotorista" prefix="R$" /><InputField label="Encargos Sociais" field="encargosSociais" suffix="%" /><InputField label="Benefícios (VT, VR, etc)" field="beneficios" prefix="R$" /></div></CardContent></Card>
                 <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" />Custos Fixos Mensais</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><InputField label="Seguro (Anual)" field="seguroAnual" prefix="R$" /><InputField label="Depreciação Mensal" field="depreciacao" prefix="R$" /><InputField label="Custo Administrativo" field="custoAdm" prefix="R$" /></div></CardContent></Card>
-                <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Fuel className="h-4 w-4 text-primary" />Custos Variáveis</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><InputField label="Preço Diesel (R$/L)" field="precoDiesel" prefix="R$" /><InputField label="Consumo (KM/L)" field="consumoKmL" suffix="km/l" /><InputField label="Pneus (R$/KM)" field="custoPneusKm" prefix="R$" /><InputField label="Manutenção (R$/KM)" field="custoManutencaoKm" prefix="R$" /></div></CardContent></Card>
                 <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-primary" />Parâmetros do Edital</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><InputField label="KM Diário" field="kmDiario" suffix="km" /><InputField label="Dias Mensais" field="diasMensais" suffix="dias" /><InputField label="Prazo Contrato" field="prazoContratoMeses" suffix="meses" /><InputField label="Qtd. Veículos" field="qtdVeiculos" suffix="un" /></div></CardContent></Card>
                 <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />Mark-up & Referência</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><InputField label="Impostos" field="impostos" suffix="%" /><InputField label="Margem Líquida" field="margemLiquida" suffix="%" /><InputField label="Comissões" field="comissoes" suffix="%" /><InputField label="Valor Máx. Edital (mensal/veíc.)" field="valorMaximoEdital" prefix="R$" /></div></CardContent></Card>
               </div>
@@ -214,9 +281,6 @@ export default function GanhaDetalhe() {
                   <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-primary">Composição de Custos (Mensal / Veículo)</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
                     {[
-                      { label: "Pessoal + Encargos", value: calc.custoPessoal },
-                      { label: "Combustível", value: calc.custoCombustivel },
-                      { label: "Manutenção + Pneus", value: calc.custoManutencao },
                       { label: "Fixos (Seguro + Depr. + Adm)", value: calc.custosFixos },
                     ].map((item) => (
                       <div key={item.label} className="flex justify-between items-center">

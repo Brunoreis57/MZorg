@@ -447,13 +447,14 @@ export function useTasks(biddingId?: string) {
   return useQuery({
     queryKey: ["tasks", biddingId],
     queryFn: async () => {
-      let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
       if (biddingId) {
-        query = query.eq("bidding_id", biddingId);
+        const { data, error } = await supabase.from("tasks" as any).select("*").eq("bidding_id", biddingId).order("created_at", { ascending: false });
+        if (error) throw error;
+        return data as any[];
       }
-      const { data, error } = await query;
+      const { data, error } = await supabase.from("tasks" as any).select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     enabled: !!user,
   });
@@ -506,13 +507,14 @@ export function useNotes(biddingId?: string) {
   return useQuery({
     queryKey: ["notes", biddingId],
     queryFn: async () => {
-      let query = supabase.from("notes").select("*").order("created_at", { ascending: false });
       if (biddingId) {
-        query = query.eq("bidding_id", biddingId);
+        const { data, error } = await supabase.from("notes" as any).select("*").eq("bidding_id", biddingId).order("created_at", { ascending: false });
+        if (error) throw error;
+        return data as any[];
       }
-      const { data, error } = await query;
+      const { data, error } = await supabase.from("notes" as any).select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     enabled: !!user,
   });
@@ -594,6 +596,48 @@ export function useUpdateBudgetItem() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["budget_items"] }); qc.invalidateQueries({ queryKey: ["budgets"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+// ── BIDDING ATTACHMENTS ──
+export function useBiddingAttachments(biddingId: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["bidding_attachments", biddingId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bidding_attachments" as any).select("*").eq("bidding_id", biddingId).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!user && !!biddingId,
+  });
+}
+
+export function useCreateBiddingAttachment() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (attachment: any) => {
+      const { error } = await supabase.from("bidding_attachments" as any).insert({ ...attachment, user_id: user!.id });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => { 
+        qc.invalidateQueries({ queryKey: ["bidding_attachments", vars.bidding_id] });
+        toast.success("Anexo adicionado!"); 
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useDeleteBiddingAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("bidding_attachments" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bidding_attachments"] }); toast.success("Anexo removido!"); },
     onError: (e: any) => toast.error(e.message),
   });
 }

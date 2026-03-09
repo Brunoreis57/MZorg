@@ -144,9 +144,9 @@ export default function Ganhas() {
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Código</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">Objeto</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">Órgão</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Cidade/UF</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">Órgão</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">Objeto</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Valor</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">Status</th>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground"></th>
@@ -160,9 +160,9 @@ export default function Ganhas() {
                           onClick={() => navigate(`/ganhas/${bid.id}`)}
                         >
                           <td className="p-3"><span className="text-sm font-semibold text-primary">{bid.code}</span></td>
-                          <td className="p-3 max-w-[260px]"><p className="text-sm text-foreground truncate">{bid.object}</p></td>
-                          <td className="p-3"><span className="text-sm text-foreground">{bid.entity}</span></td>
                           <td className="p-3"><span className="text-sm text-muted-foreground">{bid.city}/{bid.uf}</span></td>
+                          <td className="p-3"><span className="text-sm text-foreground">{bid.entity}</span></td>
+                          <td className="p-3 max-w-[260px]"><p className="text-sm text-foreground truncate">{bid.object}</p></td>
                           <td className="p-3"><span className="text-sm font-mono font-semibold text-foreground">{formatBRL(bid.estimated_value)}</span></td>
                           <td className="p-3">
                             <span className={`status-badge border ${bid.status === "Em Execução" ? "bg-info/10 text-info border-info/20" : "bg-success/10 text-success border-success/20"}`}>{bid.status}</span>

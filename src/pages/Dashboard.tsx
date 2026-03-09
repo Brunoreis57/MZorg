@@ -1,12 +1,13 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   TrendingUp, TrendingDown, FileText, Calendar, ChevronRight, Bell, Plus,
-  AlertTriangle, Clock, Send, Trophy, Truck, Gavel,
+  AlertTriangle, Clock, Send, Trophy, Truck, Gavel, Pencil, Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardTasksWidget } from "@/components/notes/DashboardTasksWidget";
+import { DashboardNotesWidget } from "@/components/notes/DashboardNotesWidget";
 import { Badge } from "@/components/ui/badge";
-import { useReminders, type ReminderType } from "@/contexts/RemindersContext";
+import { useReminders, type ReminderType, type Reminder } from "@/contexts/RemindersContext";
 import { CreateReminderDialog } from "@/components/CreateReminderDialog";
 import { Button } from "@/components/ui/button";
 import { differenceInDays, parseISO, format } from "date-fns";
@@ -45,7 +46,8 @@ function getEventBadge(daysLeft: number) {
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 export default function Dashboard() {
-  const { reminders } = useReminders();
+  const { reminders, removeReminder } = useReminders();
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const { data: biddings } = useBiddings();
   const { data: empresas } = useEmpresas();
   const { data: services } = useDailyServices();
@@ -232,11 +234,13 @@ export default function Dashboard() {
               {upcomingReminders.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum evento próximo</p>}
               {upcomingReminders.map((event, i) => {
                 const daysLeft = differenceInDays(parseISO(event.date), new Date());
-                const isClickable = event.type === "servico" && (event as any).bidding_id;
+                const isService = event.type === "servico";
+                const isClickable = isService && (event as any).bidding_id;
+                
                 return (
                   <div
                     key={event.id}
-                    className={`flex gap-3 p-3 rounded-lg bg-muted/50 border border-border/50 animate-slide-in-right ${isClickable ? "cursor-pointer hover:bg-muted/80 transition-colors" : ""}`}
+                    className={`flex gap-3 p-3 rounded-lg bg-muted/50 border border-border/50 animate-slide-in-right group relative ${isClickable ? "cursor-pointer hover:bg-muted/80 transition-colors" : ""}`}
                     style={{ animationDelay: `${i * 60}ms` }}
                     onClick={() => isClickable && navigate(`/ganhas/${(event as any).bidding_id}`)}
                   >
@@ -249,12 +253,33 @@ export default function Dashboard() {
                         <span className={`status-badge border text-[10px] ${getEventBadge(daysLeft)}`}>{daysLeft === 0 ? "Hoje" : `${daysLeft}d`}</span>
                       </div>
                     </div>
+                    {!isService && (
+                      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/80 rounded-md p-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); setEditingReminder(event as Reminder); }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeReminder(event.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </CardContent>
           </Card>
+
+          <CreateReminderDialog 
+            open={!!editingReminder} 
+            onOpenChange={(open) => !open && setEditingReminder(null)}
+            initialData={editingReminder || undefined}
+            mode="edit"
+            trigger={<></>}
+          />
+
           <DashboardTasksWidget />
+          <DashboardNotesWidget />
+          
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">Certidões</CardTitle></CardHeader>
             <CardContent className="space-y-3">

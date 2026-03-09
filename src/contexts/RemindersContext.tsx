@@ -19,6 +19,7 @@ export interface Reminder {
 interface RemindersContextType {
   reminders: Reminder[];
   addReminder: (reminder: Omit<Reminder, "id" | "read" | "createdAt">) => void;
+  updateReminder: (id: string, data: Partial<Reminder>) => void;
   removeReminder: (id: string) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -77,6 +78,18 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     [addMut]
   );
 
+  const updateMut = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Reminder> }) => {
+      const { error } = await supabase.from("reminders").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reminders"] }),
+  });
+
+  const updateReminder = useCallback((id: string, data: Partial<Reminder>) => {
+    updateMut.mutate({ id, data });
+  }, [updateMut]);
+
   const removeMut = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("reminders").delete().eq("id", id);
@@ -120,7 +133,7 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <RemindersContext.Provider
-      value={{ reminders, addReminder, removeReminder, markAsRead, markAllAsRead, unreadCount }}
+      value={{ reminders, addReminder, updateReminder, removeReminder, markAsRead, markAllAsRead, unreadCount }}
     >
       {children}
     </RemindersContext.Provider>

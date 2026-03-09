@@ -8,6 +8,7 @@ import { CreateReminderDialog } from "@/components/CreateReminderDialog";
 import { Plus } from "lucide-react";
 import { differenceInDays, parseISO, format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { FloatingChat } from "@/components/FloatingChat";
 
 function getReminderIcon(type: ReminderType) {
   switch (type) {
@@ -124,6 +125,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <main className="flex-1 overflow-auto p-4 md:p-6">
             {children}
           </main>
+          <FloatingChat />
         </div>
       </div>
     </SidebarProvider>

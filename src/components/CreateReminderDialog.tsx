@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useReminders, type ReminderType } from "@/contexts/RemindersContext";
+import { useReminders, type ReminderType, type Reminder } from "@/contexts/RemindersContext";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,16 +31,41 @@ const typeOptions: { value: ReminderType; label: string }[] = [
 
 interface CreateReminderDialogProps {
   trigger?: React.ReactNode;
+  initialData?: Reminder;
+  mode?: "create" | "edit";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CreateReminderDialog({ trigger }: CreateReminderDialogProps) {
-  const { addReminder } = useReminders();
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<ReminderType>("outro");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+export function CreateReminderDialog({ trigger, initialData, mode = "create", open: controlledOpen, onOpenChange: controlledOnOpenChange }: CreateReminderDialogProps) {
+  const { addReminder, updateReminder } = useReminders();
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
+
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [description, setDescription] = useState(initialData?.description || "");
+  const [type, setType] = useState<ReminderType>(initialData?.type || "outro");
+  const [date, setDate] = useState(initialData?.date || "");
+  const [time, setTime] = useState(initialData?.time || "");
+
+  useEffect(() => {
+    if (open && initialData) {
+        setTitle(initialData.title);
+        setDescription(initialData.description);
+        setType(initialData.type);
+        setDate(initialData.date);
+        setTime(initialData.time);
+    } else if (open && !initialData) {
+        setTitle("");
+        setDescription("");
+        setType("outro");
+        setDate("");
+        setTime("");
+    }
+  }, [open, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,29 +73,31 @@ export function CreateReminderDialog({ trigger }: CreateReminderDialogProps) {
       toast.error("Preencha o título e a data.");
       return;
     }
-    addReminder({ title: title.trim(), description: description.trim(), type, date, time });
-    toast.success("Lembrete criado com sucesso!");
-    setTitle("");
-    setDescription("");
-    setType("outro");
-    setDate("");
-    setTime("");
-    setOpen(false);
+
+    if (mode === "edit" && initialData) {
+        updateReminder(initialData.id, { title: title.trim(), description: description.trim(), type, date, time });
+        toast.success("Lembrete atualizado!");
+    } else {
+        addReminder({ title: title.trim(), description: description.trim(), type, date, time });
+        toast.success("Lembrete criado com sucesso!");
+    }
+    
+    if (setOpen) setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : (
+        <DialogTrigger asChild>
           <Button size="sm" className="gap-1.5">
             <Plus className="h-4 w-4" />
             Novo Lembrete
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Criar Lembrete</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Editar Lembrete" : "Criar Lembrete"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
