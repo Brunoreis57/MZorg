@@ -113,7 +113,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center justify-between p-4 pb-2">
-          {!collapsed && <h1 className="text-xl font-bold text-primary">LicitaPro</h1>}
+          {!collapsed && <h1 className="text-xl font-bold text-primary">MZ Licitações</h1>}
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" onClick={() => setDark(!dark)} title={dark ? "Modo Claro" : "Modo Escuro"}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

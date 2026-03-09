@@ -47,7 +47,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex items-center gap-2">
               <SidebarTrigger />
               <span className="text-sm font-medium text-muted-foreground hidden sm:inline">
-                LicitaPro
+                MZ Licitações
               </span>
             </div>
             <div className="flex items-center gap-2">
