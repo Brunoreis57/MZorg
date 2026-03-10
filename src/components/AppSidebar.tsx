@@ -7,6 +7,7 @@ import {
   Building2,
   Users,
   Truck,
+  Plus,
   Banknote,
   ClipboardList,
   Moon,
@@ -47,6 +48,7 @@ const ferramentasItems = [
   { title: "Empresas", url: "/empresas", icon: Building2 },
   { title: "Fornecedores", url: "/fornecedores", icon: Users },
   { title: "Serviços", url: "/servicos", icon: Truck },
+  { title: "Editais +", url: "/editais", icon: Plus },
 ];
 
 const sistemaItems = [

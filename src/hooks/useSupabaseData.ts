@@ -332,6 +332,62 @@ export function useDeleteDailyService() {
   });
 }
 
+// ── EDITAIS+ (ANÁLISE) ──
+export function useEditaisAnalise() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["editais_analise"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("editais_analise" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!user,
+  });
+}
+
+export function useCreateEditalAnalise() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (edital: any) => {
+      const { error } = await supabase
+        .from("editais_analise" as any)
+        .insert({ ...edital, user_id: user!.id });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["editais_analise"] }); toast.success("Edital cadastrado!"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useUpdateEditalAnalise() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
+      const { error } = await supabase.from("editais_analise" as any).update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["editais_analise"] }); toast.success("Edital atualizado!"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useDeleteEditalAnalise() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("editais_analise" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["editais_analise"] }); toast.success("Edital removido!"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
 export function useFornecedores() {
   const { user } = useAuth();
   return useQuery({
