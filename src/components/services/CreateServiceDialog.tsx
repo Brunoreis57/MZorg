@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoadingButton } from "@/components/LoadingButton";
-import { useBiddings, useCreateDailyService, useFornecedores } from "@/hooks/useSupabaseData";
+import { useBiddings, useCreateDailyService, useFornecedores, useUpdateDailyService } from "@/hooks/useSupabaseData";
 
 type ServiceStatus = "agendado" | "em_andamento" | "finalizado" | "faturado";
 
@@ -35,6 +35,7 @@ interface CreateServiceDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultBiddingId?: string;
   defaultFornecedorId?: string;
+  initialService?: any | null;
 }
 
 export function CreateServiceDialog({
@@ -42,10 +43,12 @@ export function CreateServiceDialog({
   onOpenChange,
   defaultBiddingId,
   defaultFornecedorId,
+  initialService,
 }: CreateServiceDialogProps) {
   const { data: fornecedoresData } = useFornecedores();
   const { data: biddingsData } = useBiddings();
   const createService = useCreateDailyService();
+  const updateService = useUpdateDailyService();
 
   const fornecedores = fornecedoresData || [];
   const biddings = biddingsData || [];
@@ -64,6 +67,16 @@ export function CreateServiceDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (initialService) {
+      setBiddingId(initialService.bidding_id ? initialService.bidding_id : "none");
+      setFornecedorId(initialService.fornecedor_id || "");
+      setData(initialService.data || new Date().toISOString().split("T")[0]);
+      setHoraSaida(initialService.hora_saida || "07:00");
+      setPrevisaoVolta(initialService.previsao_volta || "17:00");
+      setStatus((initialService.status as ServiceStatus) || "agendado");
+      setObservacoes(initialService.observacoes || "");
+      return;
+    }
     setBiddingId(defaultBiddingId ? defaultBiddingId : "none");
     setFornecedorId(defaultFornecedorId ? defaultFornecedorId : "");
     setData(new Date().toISOString().split("T")[0]);
@@ -71,7 +84,7 @@ export function CreateServiceDialog({
     setPrevisaoVolta("17:00");
     setStatus("agendado");
     setObservacoes("");
-  }, [open, defaultBiddingId, defaultFornecedorId]);
+  }, [open, defaultBiddingId, defaultFornecedorId, initialService]);
 
   const canSubmit = useMemo(() => {
     return !!fornecedorId && !!data;
@@ -84,21 +97,28 @@ export function CreateServiceDialog({
   const handleSubmit = () => {
     if (!canSubmit) return;
 
+    const payload = {
+      bidding_id: biddingId === "none" ? null : biddingId,
+      data,
+      hora_saida: horaSaida,
+      previsao_volta: previsaoVolta,
+      fornecedor_id: fornecedorId,
+      fornecedor_nome: fornecedorNome,
+      status,
+      observacoes: observacoes.trim() || null,
+    };
+
+    if (initialService?.id) {
+      updateService.mutate(
+        { id: initialService.id, ...payload },
+        { onSuccess: () => onOpenChange(false) }
+      );
+      return;
+    }
+
     createService.mutate(
-      {
-        bidding_id: biddingId === "none" ? null : biddingId,
-        data,
-        hora_saida: horaSaida,
-        previsao_volta: previsaoVolta,
-        fornecedor_id: fornecedorId,
-        fornecedor_nome: fornecedorNome,
-        status,
-        observacoes: observacoes.trim() || null,
-        items: [],
-      },
-      {
-        onSuccess: () => onOpenChange(false),
-      }
+      { ...payload, items: [] },
+      { onSuccess: () => onOpenChange(false) }
     );
   };
 
@@ -106,8 +126,8 @@ export function CreateServiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Criar Serviço</DialogTitle>
-          <DialogDescription>Registre uma nova OS para um fornecedor.</DialogDescription>
+          <DialogTitle>{initialService?.id ? "Editar Serviço" : "Criar Serviço"}</DialogTitle>
+          <DialogDescription>{initialService?.id ? "Atualize os dados da OS." : "Registre uma nova OS para um fornecedor."}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 gap-4 mt-2">
@@ -187,12 +207,11 @@ export function CreateServiceDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <LoadingButton onClick={handleSubmit} disabled={!canSubmit} loading={createService.isPending}>
-            Criar
+          <LoadingButton onClick={handleSubmit} disabled={!canSubmit} loading={createService.isPending || updateService.isPending}>
+            {initialService?.id ? "Salvar" : "Criar"}
           </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

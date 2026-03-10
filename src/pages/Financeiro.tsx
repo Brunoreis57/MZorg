@@ -4,6 +4,7 @@ import {
   Clock, CheckCircle2, Search, Filter, FileDown,
   Plus, Receipt, CreditCard, CalendarDays,
   TrendingUp, TrendingDown, AlertTriangle,
+  Pencil, Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { usePaymentSchedule, useFinancialTransactions, useCreateFinancialTransaction, useUpdatePaymentSchedule } from "@/hooks/useSupabaseData";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { usePaymentSchedule, useFinancialTransactions, useCreateFinancialTransaction, useUpdateFinancialTransaction, useDeleteFinancialTransaction, useUpdatePaymentSchedule } from "@/hooks/useSupabaseData";
 import { LoadingButton } from "@/components/LoadingButton";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -56,13 +58,17 @@ export default function Financeiro() {
   const { data: payments, isLoading: loadingPayments } = usePaymentSchedule();
   const { data: transactions, isLoading: loadingTx } = useFinancialTransactions();
   const createTransaction = useCreateFinancialTransaction();
+  const updateTransaction = useUpdateFinancialTransaction();
+  const deleteTransaction = useDeleteFinancialTransaction();
   const updatePayment = useUpdatePaymentSchedule();
 
   const [search, setSearch] = useState("");
   const [flowFilter, setFlowFilter] = useState("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetType, setSheetType] = useState<"receita" | "despesa">("receita");
-  const [txForm, setTxForm] = useState({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "" });
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
+  const [txForm, setTxForm] = useState({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
 
   const paymentsList = payments || [];
   const transactionsList = transactions || [];
@@ -81,9 +87,35 @@ export default function Financeiro() {
     });
   }, [search, flowFilter, paymentsList]);
 
-  const handleCreateTransaction = () => {
+  const resetTxForm = () => {
+    setTxForm({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
+    setEditingTxId(null);
+  };
+
+  const openNewTransaction = () => {
+    resetTxForm();
+    setSheetType("receita");
+    setSheetOpen(true);
+  };
+
+  const openEditTransaction = (tx: any) => {
+    setEditingTxId(tx.id);
+    setSheetType(tx.type === "despesa" ? "despesa" : "receita");
+    setTxForm({
+      amount: String(tx.amount ?? ""),
+      description: tx.description ?? "",
+      date: tx.date ?? new Date().toISOString().split("T")[0],
+      entity: tx.entity ?? "",
+      nf_number: tx.nf_number ?? "",
+      category: tx.category ?? "",
+      status: tx.status ?? "pendente",
+    });
+    setSheetOpen(true);
+  };
+
+  const handleSaveTransaction = () => {
     if (!txForm.amount || !txForm.description) { toast.error("Preencha valor e descrição."); return; }
-    createTransaction.mutate({
+    const payload = {
       type: sheetType === "receita" ? "receita" : "despesa",
       amount: parseFloat(txForm.amount),
       description: txForm.description,
@@ -91,10 +123,27 @@ export default function Financeiro() {
       entity: txForm.entity,
       nf_number: txForm.nf_number || null,
       category: txForm.category || null,
-      status: "pendente",
-    });
-    setSheetOpen(false);
-    setTxForm({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "" });
+      status: txForm.status || "pendente",
+    };
+    if (editingTxId) {
+      updateTransaction.mutate(
+        { id: editingTxId, ...payload },
+        {
+          onSuccess: () => {
+            setSheetOpen(false);
+            resetTxForm();
+            toast.success("Transação atualizada!");
+          },
+        }
+      );
+    } else {
+      createTransaction.mutate(payload, {
+        onSuccess: () => {
+          setSheetOpen(false);
+          resetTxForm();
+        },
+      });
+    }
   };
 
   if (loadingPayments || loadingTx) {
@@ -108,10 +157,10 @@ export default function Financeiro() {
         <div className="flex items-center gap-2">
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Nova Receita/Despesa</Button>
+              <Button size="sm" className="gap-1.5" onClick={openNewTransaction}><Plus className="h-3.5 w-3.5" /> Nova Receita/Despesa</Button>
             </SheetTrigger>
             <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-              <SheetHeader><SheetTitle>{sheetType === "receita" ? "Nova Receita" : "Nova Despesa"}</SheetTitle></SheetHeader>
+              <SheetHeader><SheetTitle>{editingTxId ? "Editar Transação" : sheetType === "receita" ? "Nova Receita" : "Nova Despesa"}</SheetTitle></SheetHeader>
               <div className="mt-6 space-y-4">
                 <div className="flex gap-2">
                   <Button variant={sheetType === "receita" ? "default" : "outline"} size="sm" onClick={() => setSheetType("receita")}><Building2 className="h-3.5 w-3.5 mr-1.5" />Receita</Button>
@@ -121,6 +170,19 @@ export default function Financeiro() {
                 <div className="space-y-2"><Label>Descrição</Label><Input value={txForm.description} onChange={(e) => setTxForm((p) => ({ ...p, description: e.target.value }))} /></div>
                 <div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" value={txForm.amount} onChange={(e) => setTxForm((p) => ({ ...p, amount: e.target.value }))} /></div>
                 <div className="space-y-2"><Label>Data</Label><Input type="date" value={txForm.date} onChange={(e) => setTxForm((p) => ({ ...p, date: e.target.value }))} /></div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={txForm.status} onValueChange={(v) => setTxForm((p) => ({ ...p, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                      <SelectItem value="atrasado">Atrasado</SelectItem>
+                      <SelectItem value="agendado">Agendado</SelectItem>
+                      <SelectItem value="antecipacao_solicitada">Antecipação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 {sheetType === "receita" && <div className="space-y-2"><Label>Nº NF</Label><Input value={txForm.nf_number} onChange={(e) => setTxForm((p) => ({ ...p, nf_number: e.target.value }))} /></div>}
                 {sheetType === "despesa" && (
                   <div className="space-y-2"><Label>Categoria</Label>
@@ -130,7 +192,7 @@ export default function Financeiro() {
                     </Select>
                   </div>
                 )}
-                <LoadingButton className="w-full" onClick={handleCreateTransaction} loading={createTransaction.isPending}>Salvar</LoadingButton>
+                <LoadingButton className="w-full" onClick={handleSaveTransaction} loading={createTransaction.isPending || updateTransaction.isPending}>Salvar</LoadingButton>
               </div>
             </SheetContent>
           </Sheet>
@@ -169,6 +231,7 @@ export default function Financeiro() {
                     <TableHead className="table-header">Entidade</TableHead>
                     <TableHead className="table-header text-right">Valor</TableHead>
                     <TableHead className="table-header">Status</TableHead>
+                    <TableHead className="table-header text-right pr-4">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -183,9 +246,19 @@ export default function Financeiro() {
                       <TableCell className="text-xs">{t.entity}</TableCell>
                       <TableCell className="text-xs font-mono font-medium text-right">{fmt(Number(t.amount))}</TableCell>
                       <TableCell><Badge variant="outline" className={`text-[10px] ${paymentStatusColor(t.status)}`}>{paymentStatusLabel[t.status] || t.status}</Badge></TableCell>
+                      <TableCell className="pr-4">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditTransaction(t)} title="Editar">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTxId(t.id)} title="Excluir">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {transactionsList.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">Nenhuma transação registrada</TableCell></TableRow>}
+                  {transactionsList.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">Nenhuma transação registrada</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -229,6 +302,18 @@ export default function Financeiro() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialog
+        open={!!deleteTxId}
+        onOpenChange={(open) => !open && setDeleteTxId(null)}
+        title="Excluir transação"
+        description="Esta ação não pode ser desfeita."
+        loading={deleteTransaction.isPending}
+        onConfirm={() => {
+          if (!deleteTxId) return;
+          deleteTransaction.mutate(deleteTxId, { onSuccess: () => setDeleteTxId(null) });
+        }}
+      />
     </div>
   );
 }

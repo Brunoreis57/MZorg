@@ -218,6 +218,18 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
     return { totalKm, totalReceita, totalCusto, totalImposto, totalLucro, qtd: finalizados.length };
   }, [services]);
 
+  const agendadas = useMemo(() => {
+    return services.filter((s) => s.status === "agendado" || s.status === "em_andamento");
+  }, [services]);
+
+  const aFaturar = useMemo(() => {
+    return services.filter((s) => s.status === "finalizado");
+  }, [services]);
+
+  const faturadas = useMemo(() => {
+    return services.filter((s) => s.status === "faturado");
+  }, [services]);
+
   const resetForm = () => {
     setForm({ data: new Date().toISOString().split("T")[0], hora_saida: "07:00", previsao_volta: "17:00", fornecedor_id: "" });
     setItems([emptyItem()]);
@@ -441,55 +453,150 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" />Criar OS</Button>
         </CardContent></Card>
       ) : (
-        <div className="space-y-3">
-          {services.map((s) => {
-            const st = statusConfig[s.status] || statusConfig.agendado;
-            return (
-              <Card key={s.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                      <span className="text-sm font-medium">{s.data}</span>
-                      <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {s.status === "agendado" && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => openCloseDialog(s)}>Finalizar</Button>
-                        </>
-                      )}
-                      {s.status === "finalizado" && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCloseDialog(s)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" className="gap-1" onClick={() => handleFaturar(s)}><CheckCircle2 className="h-3.5 w-3.5" />Faturar</Button>
-                        </>
-                      )}
-                      {s.status === "faturado" && <Badge variant="outline" className="bg-primary/10 text-primary"><Lock className="h-3 w-3 mr-1" />Faturado</Badge>}
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(s.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />{s.fornecedor_nome}</span>
-                    {Number(s.km_total) > 0 && <span className="font-mono">{Number(s.km_total)} km</span>}
-                    {Number(s.lucro_liquido) > 0 && <span className="font-mono text-success">Lucro: {fmt(Number(s.lucro_liquido))}</span>}
-                  </div>
-                  {(s.daily_service_items || []).map((item: any) => (
-                    <div key={item.id} className="mt-2 p-2 rounded bg-muted/30 text-xs flex items-center gap-3">
-                      <Badge variant="outline" className="text-[10px]">{vehicleLabels[item.tipo_veiculo] || item.tipo_veiculo}</Badge>
-                      <span>{item.origem} → {item.destino}</span>
-                      {item.passageiros_carga && <span className="text-muted-foreground">({item.passageiros_carga})</span>}
-                    </div>
-                  ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Agendadas</h3>
+              <Badge variant="outline" className="text-[10px]">{agendadas.length}</Badge>
+            </div>
+
+            {agendadas.length === 0 ? (
+              <Card className="border-dashed border-2">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma OS agendada
                 </CardContent>
               </Card>
-            );
-          })}
+            ) : (
+              <div className="space-y-3">
+                {agendadas.map((s) => {
+                  const st = statusConfig[s.status] || statusConfig.agendado;
+                  return (
+                    <Card key={s.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                            <span className="text-sm font-medium">{s.data}</span>
+                            <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => openCloseDialog(s)}>Finalizar</Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(s.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />{s.fornecedor_nome}</span>
+                        </div>
+                        {(s.daily_service_items || []).map((item: any) => (
+                          <div key={item.id} className="mt-2 p-2 rounded bg-muted/30 text-xs flex items-center gap-3">
+                            <Badge variant="outline" className="text-[10px]">{vehicleLabels[item.tipo_veiculo] || item.tipo_veiculo}</Badge>
+                            <span>{item.origem} → {item.destino}</span>
+                            {item.passageiros_carga && <span className="text-muted-foreground">({item.passageiros_carga})</span>}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">A faturar</h3>
+              <Badge variant="outline" className="text-[10px]">{aFaturar.length}</Badge>
+            </div>
+
+            {aFaturar.length === 0 ? (
+              <Card className="border-dashed border-2">
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma OS para faturar
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {aFaturar.map((s) => {
+                  const st = statusConfig[s.status] || statusConfig.agendado;
+                  return (
+                    <Card key={s.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                            <span className="text-sm font-medium">{s.data}</span>
+                            <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCloseDialog(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" className="gap-1" onClick={() => handleFaturar(s)}><CheckCircle2 className="h-3.5 w-3.5" />Faturar</Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(s.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />{s.fornecedor_nome}</span>
+                          {Number(s.km_total) > 0 && <span className="font-mono">{Number(s.km_total)} km</span>}
+                          {Number(s.lucro_liquido) > 0 && <span className="font-mono text-success">Lucro: {fmt(Number(s.lucro_liquido))}</span>}
+                        </div>
+                        {(s.daily_service_items || []).map((item: any) => (
+                          <div key={item.id} className="mt-2 p-2 rounded bg-muted/30 text-xs flex items-center gap-3">
+                            <Badge variant="outline" className="text-[10px]">{vehicleLabels[item.tipo_veiculo] || item.tipo_veiculo}</Badge>
+                            <span>{item.origem} → {item.destino}</span>
+                            {item.passageiros_carga && <span className="text-muted-foreground">({item.passageiros_carga})</span>}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {faturadas.length > 0 && (
+              <div className="pt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Faturadas</h3>
+                  <Badge variant="outline" className="text-[10px]">{faturadas.length}</Badge>
+                </div>
+                <div className="space-y-3">
+                  {faturadas.map((s) => {
+                    const st = statusConfig[s.status] || statusConfig.agendado;
+                    return (
+                      <Card key={s.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <Badge variant="outline" className={st.color}>{st.label}</Badge>
+                              <span className="text-sm font-medium">{s.data}</span>
+                              <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className="bg-primary/10 text-primary"><Lock className="h-3 w-3 mr-1" />Faturado</Badge>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(s.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" />{s.fornecedor_nome}</span>
+                            {Number(s.km_total) > 0 && <span className="font-mono">{Number(s.km_total)} km</span>}
+                            {Number(s.lucro_liquido) > 0 && <span className="font-mono text-success">Lucro: {fmt(Number(s.lucro_liquido))}</span>}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

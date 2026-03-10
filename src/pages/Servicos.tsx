@@ -12,11 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CreateServiceDialog } from "@/components/services/CreateServiceDialog";
-import { useBiddings, useDailyServices, useFornecedores } from "@/hooks/useSupabaseData";
+import { useBiddings, useDailyServices, useDeleteDailyService, useFornecedores } from "@/hooks/useSupabaseData";
 import { format, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
-import { ChevronDown, ChevronUp, Eye, Plus, Search, Truck } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Plus, Search, Truck, Pencil, Trash2 } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   agendado: { label: "Agendado", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
@@ -34,6 +35,7 @@ export default function Servicos() {
   const { data: servicesData, isLoading } = useDailyServices();
   const { data: fornecedoresData } = useFornecedores();
   const { data: biddingsData } = useBiddings();
+  const deleteService = useDeleteDailyService();
 
   const services = servicesData || [];
   const fornecedores = fornecedoresData || [];
@@ -42,7 +44,9 @@ export default function Servicos() {
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [fornecedorFilter, setFornecedorFilter] = useState<string>("todos");
-  const [openCreate, setOpenCreate] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingService, setEditingService] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const fornecedorNameById = useMemo(() => {
@@ -128,7 +132,13 @@ export default function Servicos() {
           </h1>
           <p className="text-sm text-muted-foreground">OS por fornecedor</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setOpenCreate(true)}>
+        <Button
+          className="gap-1.5"
+          onClick={() => {
+            setEditingService(null);
+            setOpenDialog(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           Novo Serviço
         </Button>
@@ -267,15 +277,38 @@ export default function Servicos() {
                                   <span className="text-sm font-mono text-foreground">{fmt(Number(s.lucro_liquido || 0))}</span>
                                 </td>
                                 <td className="p-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => s.bidding_id ? navigate(`/ganhas/${s.bidding_id}`) : navigate(`/servicos`)}
-                                    title="Ver"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                      onClick={() => s.bidding_id ? navigate(`/ganhas/${s.bidding_id}`) : navigate(`/servicos`)}
+                                      title="Ver"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                      onClick={() => {
+                                        setEditingService(s);
+                                        setOpenDialog(true);
+                                      }}
+                                      title="Editar"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      onClick={() => setDeleteTarget(s)}
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -291,8 +324,19 @@ export default function Servicos() {
         })}
       </div>
 
-      <CreateServiceDialog open={openCreate} onOpenChange={setOpenCreate} />
+      <CreateServiceDialog open={openDialog} onOpenChange={setOpenDialog} initialService={editingService} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Excluir serviço"
+        description="Esta ação não pode ser desfeita."
+        loading={deleteService.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteService.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
+      />
     </div>
   );
 }
-

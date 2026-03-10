@@ -430,6 +430,18 @@ export function useUpdateFinancialTransaction() {
   });
 }
 
+export function useDeleteFinancialTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial_transactions"] }); toast.success("Transação excluída!"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
 // ── PRICING SCENARIOS ──
 export function usePricingScenarios(biddingId: string) {
   const { user } = useAuth();
