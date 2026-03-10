@@ -19,6 +19,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Relatorios from "./pages/Relatorios";
+import Servicos from "./pages/Servicos";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ function ProtectedRoutes() {
         <Route path="/financeiro" element={<Financeiro />} />
         <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/notas-tarefas" element={<NotasTarefas />} />
+        <Route path="/servicos" element={<Servicos />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

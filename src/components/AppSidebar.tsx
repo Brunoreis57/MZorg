@@ -6,6 +6,7 @@ import {
   Gavel,
   Building2,
   Users,
+  Truck,
   Banknote,
   ClipboardList,
   Moon,
@@ -45,6 +46,7 @@ const ferramentasItems = [
   { title: "Notas & Tarefas", url: "/notas-tarefas", icon: ClipboardList },
   { title: "Empresas", url: "/empresas", icon: Building2 },
   { title: "Fornecedores", url: "/fornecedores", icon: Users },
+  { title: "Serviços", url: "/servicos", icon: Truck },
 ];
 
 const sistemaItems = [

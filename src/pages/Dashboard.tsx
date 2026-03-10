@@ -6,6 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardTasksWidget } from "@/components/notes/DashboardTasksWidget";
 import { DashboardNotesWidget } from "@/components/notes/DashboardNotesWidget";
+import { DashboardServicesWidget } from "@/components/services/DashboardServicesWidget";
 import { Badge } from "@/components/ui/badge";
 import { useReminders, type ReminderType, type Reminder } from "@/contexts/RemindersContext";
 import { CreateReminderDialog } from "@/components/CreateReminderDialog";
@@ -53,7 +54,7 @@ export default function Dashboard() {
   const { data: services } = useDailyServices();
   const navigate = useNavigate();
 
-  const allBiddings = biddings || [];
+  const allBiddings = useMemo(() => biddings || [], [biddings]);
 
   const kpis = useMemo(() => {
     const ativas = allBiddings.filter((b) => !["Ganha", "Perdida", "Cancelada"].includes(b.status));
@@ -65,6 +66,14 @@ export default function Dashboard() {
 
   const inResourceBiddings = useMemo(() => {
     return allBiddings.filter((b) => b.status === "Recurso");
+  }, [allBiddings]);
+
+  const statusCounts = useMemo(() => {
+    const ganhos = allBiddings.filter((b) => b.status === "Ganha").length;
+    const recursos = allBiddings.filter((b) => b.status === "Recurso").length;
+    const emAnalise = allBiddings.filter((b) => b.status === "Em Análise").length;
+    const emExecucao = allBiddings.filter((b) => b.status === "Em Execução").length;
+    return { ganhos, recursos, emAnalise, emExecucao };
   }, [allBiddings]);
 
   const upcomingPregoes = useMemo(() => {
@@ -131,39 +140,67 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
         <div className="space-y-6">
-          {/* Licitações em Recurso */}
-          <Card className={`border-warning/20 bg-warning/5 ${inResourceBiddings.length === 0 ? "opacity-50" : ""}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2 text-warning-700">
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                Licitações em Recurso ({inResourceBiddings.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {inResourceBiddings.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma licitação em recurso</p>
-              )}
-              {inResourceBiddings.map((bid) => (
-                <div 
-                  key={bid.id} 
-                  className="flex gap-3 p-3 rounded-lg bg-background/50 border border-warning/20 cursor-pointer hover:bg-background/80"
-                  onClick={() => navigate(`/licitacoes`)}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
-                    <Gavel className="h-5 w-5 text-warning" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{bid.code} - {bid.object}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{bid.entity} • {(bid.city || "").toUpperCase()}/{(bid.uf || "").toUpperCase()}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs font-mono font-medium">{fmt(Number(bid.estimated_value))}</span>
-                      <span className="status-badge border bg-warning/10 text-warning border-warning/20 text-[10px]">Recurso</span>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4">
+            <Card className={`border-warning/20 bg-warning/5 ${inResourceBiddings.length === 0 ? "opacity-50" : ""}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2 text-warning-700">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  Licitações em Recurso ({inResourceBiddings.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {inResourceBiddings.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma licitação em recurso</p>
+                )}
+                {inResourceBiddings.map((bid) => (
+                  <div 
+                    key={bid.id} 
+                    className="flex gap-3 p-3 rounded-lg bg-background/50 border border-warning/20 cursor-pointer hover:bg-background/80"
+                    onClick={() => navigate(`/licitacoes`)}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+                      <Gavel className="h-5 w-5 text-warning" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{bid.code} - {bid.object}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{bid.entity} • {(bid.city || "").toUpperCase()}/{(bid.uf || "").toUpperCase()}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs font-mono font-medium">{fmt(Number(bid.estimated_value))}</span>
+                        <span className="status-badge border bg-warning/10 text-warning border-warning/20 text-[10px]">Recurso</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="border-success/20 bg-success/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Ganhas</p>
+                  <p className="text-2xl font-bold text-success">{statusCounts.ganhos}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-warning/20 bg-warning/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Recursos</p>
+                  <p className="text-2xl font-bold text-warning">{statusCounts.recursos}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-info/20 bg-info/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Em Análise</p>
+                  <p className="text-2xl font-bold text-info">{statusCounts.emAnalise}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Em Execução</p>
+                  <p className="text-2xl font-bold text-primary">{statusCounts.emExecucao}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {/* Próximos Pregões */}
           <Card>
@@ -268,6 +305,8 @@ export default function Dashboard() {
               })}
             </CardContent>
           </Card>
+
+          <DashboardServicesWidget />
 
           <CreateReminderDialog 
             open={!!editingReminder} 
