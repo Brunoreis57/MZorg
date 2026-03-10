@@ -270,7 +270,7 @@ export default function GanhaDetalhe() {
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
+            <div className="grid grid-cols-1 2xl:grid-cols-[1fr_380px] gap-4">
               <div className="space-y-4">
                 <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" />Custos Fixos Mensais</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><InputField label="Seguro (Anual)" field="seguroAnual" prefix="R$" /><InputField label="Depreciação Mensal" field="depreciacao" prefix="R$" /><InputField label="Custo Administrativo" field="custoAdm" prefix="R$" /></div></CardContent></Card>
                 <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-primary" />Parâmetros do Edital</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><InputField label="KM Diário" field="kmDiario" suffix="km" /><InputField label="Dias Mensais" field="diasMensais" suffix="dias" /><InputField label="Prazo Contrato" field="prazoContratoMeses" suffix="meses" /><InputField label="Qtd. Veículos" field="qtdVeiculos" suffix="un" /></div></CardContent></Card>

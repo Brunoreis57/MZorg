@@ -41,6 +41,12 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 function fmt(v: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); }
+function fmtDateBR(dateStr?: string | null) {
+  if (!dateStr) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  try { return new Date(dateStr).toLocaleDateString("pt-BR"); } catch { return String(dateStr); }
+}
 
 interface VehiclePricing {
   custo: number;
@@ -476,7 +482,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
                             <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                            <span className="text-sm font-medium">{s.data}</span>
+                            <span className="text-sm font-medium">{fmtDateBR(s.data)}</span>
                             <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -529,7 +535,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-3">
                             <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                            <span className="text-sm font-medium">{s.data}</span>
+                            <span className="text-sm font-medium">{fmtDateBR(s.data)}</span>
                             <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -574,7 +580,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
                               <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                              <span className="text-sm font-medium">{s.data}</span>
+                              <span className="text-sm font-medium">{fmtDateBR(s.data)}</span>
                               <span className="text-xs text-muted-foreground">{s.hora_saida} - {s.previsao_volta}</span>
                             </div>
                             <div className="flex items-center gap-1">

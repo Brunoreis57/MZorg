@@ -214,7 +214,7 @@ export default function Fornecedores() {
       </Card>
 
       {viewMode === "cards" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
           {fornecedoresFiltrados.map((f) => (
             <Card key={f.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailOpen(f)}>
               <CardContent className="p-5">

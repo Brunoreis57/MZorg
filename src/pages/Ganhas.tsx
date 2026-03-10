@@ -113,7 +113,7 @@ export default function Ganhas() {
           )}
 
           {viewMode === "cards" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
               {items.map((bid) => (
                 <Card key={bid.id} className="hover:shadow-md transition-all cursor-pointer group" onClick={() => navigate(`/ganhas/${bid.id}`)}>
                   <CardContent className="p-5 space-y-3">

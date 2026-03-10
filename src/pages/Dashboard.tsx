@@ -138,7 +138,7 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral da sua operação de licitações</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-[1fr_340px] gap-6">
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4">
             <Card className={`border-warning/20 bg-warning/5 ${inResourceBiddings.length === 0 ? "opacity-50" : ""}`}>

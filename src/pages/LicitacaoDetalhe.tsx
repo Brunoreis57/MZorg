@@ -194,7 +194,7 @@ export default function LicitacaoDetalhe() {
       </div>
 
       {/* Suppliers Section */}
-      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div className="mt-8 grid grid-cols-1 2xl:grid-cols-2 gap-8">
           <div>
             <SuppliersSection 
                 biddingId={bidding.id} 
