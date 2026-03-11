@@ -19,6 +19,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinanceAllowed } from "@/hooks/useSupabaseData";
 
 import {
   Sidebar,
@@ -60,6 +61,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { data: financeAllowed = false } = useFinanceAllowed();
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
@@ -83,7 +85,6 @@ export function AppSidebar() {
 
   const userInitials = user?.email?.substring(0, 2).toUpperCase() || "??";
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "Usuário";
-  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
 
   const renderGroup = (label: string, items: { title: string; url: string; icon: any }[]) => (
     <SidebarGroup>

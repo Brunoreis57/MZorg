@@ -21,12 +21,13 @@ import NotFound from "./pages/NotFound";
 import Relatorios from "./pages/Relatorios";
 import Servicos from "./pages/Servicos";
 import Editais from "./pages/Editais";
+import { useFinanceAllowed } from "@/hooks/useSupabaseData";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
-  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
+  const { data: financeAllowed = false, isLoading: loadingFinanceAllowed } = useFinanceAllowed();
 
   if (loading) {
     return (
@@ -38,6 +39,17 @@ function ProtectedRoutes() {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const FinanceiroRoute = () => {
+    if (loadingFinanceAllowed) {
+      return (
+        <div className="p-6 flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      );
+    }
+    return financeAllowed ? <Financeiro /> : <Navigate to="/" replace />;
+  };
+
   return (
     <AppLayout>
       <Routes>
@@ -48,7 +60,7 @@ function ProtectedRoutes() {
         <Route path="/ganhas/:id" element={<GanhaDetalhe />} />
         <Route path="/empresas" element={<Empresas />} />
         <Route path="/fornecedores" element={<Fornecedores />} />
-        <Route path="/financeiro" element={financeAllowed ? <Financeiro /> : <Navigate to="/" replace />} />
+        <Route path="/financeiro" element={<FinanceiroRoute />} />
         <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/notas-tarefas" element={<NotasTarefas />} />
         <Route path="/servicos" element={<Servicos />} />

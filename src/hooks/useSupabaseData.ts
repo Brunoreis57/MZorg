@@ -890,6 +890,19 @@ export function useUpdatePaymentSchedule() {
   });
 }
 
+export function useFinanceAllowed() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["finance_allowed", user?.id || "anon"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("is_finance_allowed");
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user,
+  });
+}
+
 // ── CONTRACT HELPERS ──
 export function useCreateContract() {
   const qc = useQueryClient();

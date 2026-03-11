@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingButton } from "@/components/LoadingButton";
 import {
@@ -78,12 +77,24 @@ export function AdminTab() {
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [users, setUsers] = useState<ProfileEntry[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
+  const [financeEmails, setFinanceEmails] = useState<{ id: string; email: string }[]>([]);
+  const [financeEmailInput, setFinanceEmailInput] = useState("");
+  const [savingFinanceAccess, setSavingFinanceAccess] = useState(false);
 
   // New user form
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const fetchFinanceAccess = async () => {
+    const { data, error } = await (supabase as any)
+      .from("finance_allowed_emails")
+      .select("id,email")
+      .order("email", { ascending: true });
+    if (error) return;
+    setFinanceEmails((data || []).map((r: any) => ({ id: r.id, email: r.email })));
+  };
 
   const fetchData = async () => {
     setLoadingActivities(true);
@@ -102,11 +113,45 @@ export function AdminTab() {
     if (actRes.data) setActivities(actRes.data);
     if (usersRes.data) setUsers(usersRes.data);
     setLoadingActivities(false);
+    fetchFinanceAccess();
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const addFinanceEmail = async () => {
+    const email = financeEmailInput.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "E-mail inválido", variant: "destructive" });
+      return;
+    }
+
+    setSavingFinanceAccess(true);
+    const { error } = await (supabase as any).from("finance_allowed_emails").insert({ email });
+    if (error) {
+      toast({ title: "Erro ao liberar acesso", description: error.message, variant: "destructive" });
+      setSavingFinanceAccess(false);
+      return;
+    }
+    setFinanceEmailInput("");
+    await fetchFinanceAccess();
+    setSavingFinanceAccess(false);
+    toast({ title: "Acesso liberado", description: email });
+  };
+
+  const removeFinanceEmail = async (id: string) => {
+    setSavingFinanceAccess(true);
+    const { error } = await (supabase as any).from("finance_allowed_emails").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao remover acesso", description: error.message, variant: "destructive" });
+      setSavingFinanceAccess(false);
+      return;
+    }
+    await fetchFinanceAccess();
+    setSavingFinanceAccess(false);
+  };
 
   const handleCreateUser = async () => {
     if (!newEmail || !newPassword) {
@@ -176,6 +221,47 @@ export function AdminTab() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Shield className="h-5 w-5 text-primary" />
+            Acesso ao Financeiro
+          </CardTitle>
+          <CardDescription>Libere ou remova acesso à página Financeiro por e-mail.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="space-y-2 flex-1">
+              <Label>E-mail</Label>
+              <Input value={financeEmailInput} onChange={(e) => setFinanceEmailInput(e.target.value)} placeholder="email@empresa.com" />
+            </div>
+            <LoadingButton loading={savingFinanceAccess} onClick={addFinanceEmail} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Liberar
+            </LoadingButton>
+          </div>
+
+          <div className="space-y-2">
+            {financeEmails.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{r.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">Liberado</Badge>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFinanceEmail(r.id)} title="Remover">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {financeEmails.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum e-mail liberado.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Create User */}
       <Card>
         <CardHeader>

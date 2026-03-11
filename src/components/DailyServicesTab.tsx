@@ -24,7 +24,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { LoadingButton } from "@/components/LoadingButton";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useFinanceAllowed } from "@/hooks/useSupabaseData";
 import {
   useDailyServices, useCreateDailyService, useUpdateDailyService,
   useDeleteDailyService, useFornecedores, useCreateFinancialTransaction,
@@ -82,8 +82,7 @@ const defaultPricingConfig: PricingConfig = {
 const emptyItem = (): ItemForm => ({ tipo_veiculo: "van", quantidade: 1, origem: "", destino: "", passageiros_carga: "" });
 
 export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wonData?: WonItemsData | null }) {
-  const { user } = useAuth();
-  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
+  const { data: financeAllowed = false } = useFinanceAllowed();
   const { data: servicesData, isLoading } = useDailyServices(biddingId);
   const { data: fornecedores } = useFornecedores();
   const createService = useCreateDailyService();

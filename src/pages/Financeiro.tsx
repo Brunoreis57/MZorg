@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { usePaymentSchedule, useFinancialTransactions, useCreateFinancialTransaction, useUpdateFinancialTransaction, useDeleteFinancialTransaction, useUpdatePaymentSchedule } from "@/hooks/useSupabaseData";
 import { LoadingButton } from "@/components/LoadingButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinanceAllowed } from "@/hooks/useSupabaseData";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -57,7 +58,7 @@ const healthLabel: Record<string, string> = { em_dia: "Em dia", pendente_repasse
 
 export default function Financeiro() {
   const { user } = useAuth();
-  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
+  const { data: financeAllowed = false, isLoading: loadingFinanceAllowed } = useFinanceAllowed();
   const { data: payments, isLoading: loadingPayments } = usePaymentSchedule(undefined, financeAllowed);
   const { data: transactions, isLoading: loadingTx } = useFinancialTransactions(financeAllowed);
   const createTransaction = useCreateFinancialTransaction();
@@ -166,7 +167,7 @@ export default function Financeiro() {
     }
   };
 
-  if (!financeAllowed) {
+  if (!loadingFinanceAllowed && !financeAllowed) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
@@ -175,7 +176,7 @@ export default function Financeiro() {
     );
   }
 
-  if (loadingPayments || loadingTx) {
+  if (loadingFinanceAllowed || loadingPayments || loadingTx) {
     return <div className="p-6 flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   }
 
