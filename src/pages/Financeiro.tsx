@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { usePaymentSchedule, useFinancialTransactions, useCreateFinancialTransaction, useUpdateFinancialTransaction, useDeleteFinancialTransaction, useUpdatePaymentSchedule } from "@/hooks/useSupabaseData";
 import { LoadingButton } from "@/components/LoadingButton";
+import { useAuth } from "@/contexts/AuthContext";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -55,8 +56,10 @@ const healthIcon = (h: string) => {
 const healthLabel: Record<string, string> = { em_dia: "Em dia", pendente_repasse: "Repasse pendente", antecipacao_pendente: "Antecipação pendente" };
 
 export default function Financeiro() {
-  const { data: payments, isLoading: loadingPayments } = usePaymentSchedule();
-  const { data: transactions, isLoading: loadingTx } = useFinancialTransactions();
+  const { user } = useAuth();
+  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
+  const { data: payments, isLoading: loadingPayments } = usePaymentSchedule(undefined, financeAllowed);
+  const { data: transactions, isLoading: loadingTx } = useFinancialTransactions(financeAllowed);
   const createTransaction = useCreateFinancialTransaction();
   const updateTransaction = useUpdateFinancialTransaction();
   const deleteTransaction = useDeleteFinancialTransaction();
@@ -162,6 +165,15 @@ export default function Financeiro() {
       });
     }
   };
+
+  if (!financeAllowed) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
+        <p className="text-sm text-muted-foreground mt-2">Você não tem permissão para acessar esta página.</p>
+      </div>
+    );
+  }
 
   if (loadingPayments || loadingTx) {
     return <div className="p-6 flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;

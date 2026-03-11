@@ -24,6 +24,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { LoadingButton } from "@/components/LoadingButton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useDailyServices, useCreateDailyService, useUpdateDailyService,
   useDeleteDailyService, useFornecedores, useCreateFinancialTransaction,
@@ -81,6 +82,8 @@ const defaultPricingConfig: PricingConfig = {
 const emptyItem = (): ItemForm => ({ tipo_veiculo: "van", quantidade: 1, origem: "", destino: "", passageiros_carga: "" });
 
 export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wonData?: WonItemsData | null }) {
+  const { user } = useAuth();
+  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
   const { data: servicesData, isLoading } = useDailyServices(biddingId);
   const { data: fornecedores } = useFornecedores();
   const createService = useCreateDailyService();
@@ -358,6 +361,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
 
     updateService.mutate(updateData, {
       onSuccess: async () => {
+        if (!financeAllowed) return;
         if (keepFaturadoStatus || selectedService?.status === "faturado") {
           const serviceId = updateData.id;
           const serviceDate = selectedService?.data || "";
@@ -441,9 +445,13 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
 
   const handleFaturar = (s: any) => {
     updateService.mutate({ id: s.id, status: "faturado" });
-    createTransaction.mutate({ type: "receita", amount: s.receita_bruta, daily_service_id: s.id, description: `Receita OS ${s.data}`, date: s.data, status: "pendente", entity: "Órgão" });
-    createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, paid_amount: 0, daily_service_id: s.id, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
-    toast.success("Faturado! Receita e despesa registradas.");
+    if (financeAllowed) {
+      createTransaction.mutate({ type: "receita", amount: s.receita_bruta, daily_service_id: s.id, description: `Receita OS ${s.data}`, date: s.data, status: "pendente", entity: "Órgão" });
+      createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, paid_amount: 0, daily_service_id: s.id, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
+      toast.success("Faturado! Receita e despesa registradas.");
+    } else {
+      toast.success("Faturado!");
+    }
   };
 
   const handleDeleteConfirm = () => {

@@ -26,6 +26,7 @@ const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
+  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
 
   if (loading) {
     return (
@@ -47,7 +48,7 @@ function ProtectedRoutes() {
         <Route path="/ganhas/:id" element={<GanhaDetalhe />} />
         <Route path="/empresas" element={<Empresas />} />
         <Route path="/fornecedores" element={<Fornecedores />} />
-        <Route path="/financeiro" element={<Financeiro />} />
+        <Route path="/financeiro" element={financeAllowed ? <Financeiro /> : <Navigate to="/" replace />} />
         <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/notas-tarefas" element={<NotasTarefas />} />
         <Route path="/servicos" element={<Servicos />} />

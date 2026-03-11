@@ -850,7 +850,7 @@ export function useDeleteFornecedor() {
 }
 
 // ── FINANCIAL & SCHEDULE ──
-export function useFinancialTransactions() {
+export function useFinancialTransactions(enabled = true) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["financial_transactions"],
@@ -859,11 +859,11 @@ export function useFinancialTransactions() {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && enabled,
   });
 }
 
-export function usePaymentSchedule(contractId?: string) {
+export function usePaymentSchedule(contractId?: string, enabled = true) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["payment_schedules", contractId || "all"],
@@ -874,7 +874,7 @@ export function usePaymentSchedule(contractId?: string) {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && enabled,
   });
 }
 

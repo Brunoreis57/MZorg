@@ -83,6 +83,7 @@ export function AppSidebar() {
 
   const userInitials = user?.email?.substring(0, 2).toUpperCase() || "??";
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "Usuário";
+  const financeAllowed = ["bruno.g.reis@gmail.com", "mtzilmann@gmail.com", "vitorferrari_@hotmail.com"].includes(user?.email || "");
 
   const renderGroup = (label: string, items: { title: string; url: string; icon: any }[]) => (
     <SidebarGroup>
@@ -145,7 +146,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         {renderGroup("Principal", principalItems)}
-        {renderGroup("Ferramentas", ferramentasItems)}
+        {renderGroup("Ferramentas", ferramentasItems.filter((i) => i.url !== "/financeiro" || financeAllowed))}
         {renderGroup("Sistema", sistemaItems)}
       </SidebarContent>
 
