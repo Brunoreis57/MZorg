@@ -73,11 +73,19 @@ export default function Financeiro() {
   const paymentsList: any[] = (payments as any[]) || [];
   const transactionsList: any[] = (transactions as any[]) || [];
 
-  const totalEntradas = transactionsList.filter((t) => t.type === "receita" && t.status === "pago").reduce((a, b) => a + Number(b.amount), 0);
-  const totalSaidas = transactionsList.filter((t) => t.type === "despesa" && t.status === "pago").reduce((a, b) => a + Number(b.amount), 0);
-  const contasReceber = transactionsList.filter((t) => t.type === "receita" && t.status !== "pago").reduce((a, b) => a + Number(b.amount), 0);
-  const contasPagar = transactionsList.filter((t) => t.type === "despesa" && t.status !== "pago").reduce((a, b) => a + Number(b.amount), 0);
-  const saldo = totalEntradas - totalSaidas;
+  const paidPortion = (t: any) => {
+    const amount = Number(t?.amount || 0);
+    const paid = Number(t?.paid_amount || 0);
+    if (paid > 0) return Math.min(paid, amount);
+    if (t?.status === "pago") return amount;
+    return 0;
+  };
+
+  const totalEntradas = transactionsList.filter((t) => t.type === "receita").reduce((a, t) => a + paidPortion(t), 0);
+  const totalSaidas = transactionsList.filter((t) => t.type === "despesa").reduce((a, t) => a + paidPortion(t), 0);
+  const contasReceber = transactionsList.filter((t) => t.type === "receita").reduce((a, t) => a + (Number(t?.amount || 0) - paidPortion(t)), 0);
+  const contasPagar = transactionsList.filter((t) => t.type === "despesa").reduce((a, t) => a + (Number(t?.amount || 0) - paidPortion(t)), 0);
+  const saldo = totalEntradas - totalSaidas - contasPagar;
 
   const filteredSchedule = useMemo(() => {
     return paymentsList.filter((p) => {
@@ -211,10 +219,10 @@ export default function Financeiro() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Recebido</p><p className="kpi-value mt-1">{fmt(totalEntradas)}</p><div className="mt-1 flex items-center gap-1 text-xs text-success"><ArrowUpRight className="h-3 w-3" />Entradas confirmadas</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10"><Building2 className="h-5 w-5 text-success" /></div></div></CardContent></Card>
-        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Pago</p><p className="kpi-value mt-1">{fmt(totalSaidas)}</p><div className="mt-1 flex items-center gap-1 text-xs text-destructive"><ArrowDownRight className="h-3 w-3" />Saídas confirmadas</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10"><Truck className="h-5 w-5 text-destructive" /></div></div></CardContent></Card>
+        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Recebido</p><p className="kpi-value mt-1">{fmt(totalEntradas)}</p><div className="mt-1 flex items-center gap-1 text-xs text-success"><ArrowUpRight className="h-3 w-3" />Inclui recebimentos parciais</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10"><Building2 className="h-5 w-5 text-success" /></div></div></CardContent></Card>
+        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Pago</p><p className="kpi-value mt-1">{fmt(totalSaidas)}</p><div className="mt-1 flex items-center gap-1 text-xs text-destructive"><ArrowDownRight className="h-3 w-3" />Inclui pagamentos parciais</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10"><Truck className="h-5 w-5 text-destructive" /></div></div></CardContent></Card>
         <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">A Receber</p><p className="kpi-value mt-1">{fmt(contasReceber)}</p><div className="mt-1 flex items-center gap-1 text-xs text-warning"><Clock className="h-3 w-3" />Pendentes</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10"><Receipt className="h-5 w-5 text-warning" /></div></div></CardContent></Card>
-        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Saldo Líquido</p><p className="kpi-value mt-1">{fmt(saldo)}</p><div className={`mt-1 flex items-center gap-1 text-xs ${saldo >= 0 ? "text-success" : "text-destructive"}`}>{saldo >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}Recebido - Pago</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><DollarSign className="h-5 w-5 text-primary" /></div></div></CardContent></Card>
+        <Card className="stat-card"><CardContent className="p-0"><div className="flex items-center justify-between"><div><p className="kpi-label">Saldo Líquido</p><p className="kpi-value mt-1">{fmt(saldo)}</p><div className={`mt-1 flex items-center gap-1 text-xs ${saldo >= 0 ? "text-success" : "text-destructive"}`}>{saldo >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}Recebido - Pago - Em aberto</div></div><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><DollarSign className="h-5 w-5 text-primary" /></div></div></CardContent></Card>
       </div>
 
       {/* Tabs */}
