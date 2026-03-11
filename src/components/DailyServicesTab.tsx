@@ -23,6 +23,7 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { LoadingButton } from "@/components/LoadingButton";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useDailyServices, useCreateDailyService, useUpdateDailyService,
   useDeleteDailyService, useFornecedores, useCreateFinancialTransaction,
@@ -355,7 +356,73 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
       observacoes: closeForm.observacoes,
     };
 
-    updateService.mutate(updateData);
+    updateService.mutate(updateData, {
+      onSuccess: async () => {
+        if (keepFaturadoStatus || selectedService?.status === "faturado") {
+          const serviceId = updateData.id;
+          const serviceDate = selectedService?.data || "";
+
+          const receitaAmount = Number(updateData.receita_bruta || 0);
+          const despesaAmount = Number(updateData.custo_fornecedor || 0);
+
+          const [{ data: existingReceita }, { data: existingDespesa }] = await Promise.all([
+            (supabase as any)
+              .from("financial_transactions")
+              .select("id, paid_amount")
+              .eq("daily_service_id", serviceId)
+              .eq("type", "receita")
+              .order("created_at", { ascending: false })
+              .limit(1),
+            (supabase as any)
+              .from("financial_transactions")
+              .select("id, paid_amount")
+              .eq("daily_service_id", serviceId)
+              .eq("type", "despesa")
+              .order("created_at", { ascending: false })
+              .limit(1),
+          ]);
+
+          const receitaId = existingReceita?.[0]?.id;
+          const despesaId = existingDespesa?.[0]?.id;
+
+          const safePaidForDespesa = Math.min(Number(existingDespesa?.[0]?.paid_amount || 0), despesaAmount);
+
+          const updates: any[] = [];
+          if (receitaId) {
+            updates.push(
+              (supabase as any)
+                .from("financial_transactions")
+                .update({
+                  amount: receitaAmount,
+                  date: serviceDate,
+                  description: `Receita OS ${serviceDate}`,
+                })
+                .eq("id", receitaId)
+            );
+          }
+          if (despesaId) {
+            updates.push(
+              (supabase as any)
+                .from("financial_transactions")
+                .update({
+                  amount: despesaAmount,
+                  paid_amount: safePaidForDespesa,
+                  date: serviceDate,
+                  entity: selectedService?.fornecedor_nome || "",
+                  description: `Custo fornecedor OS ${serviceDate}`,
+                })
+                .eq("id", despesaId)
+            );
+          }
+
+          if (updates.length > 0) {
+            const results = await Promise.all(updates);
+            const anyError = results.some((r) => r?.error);
+            if (anyError) toast.error("OS atualizada, mas falhou sincronizar no Financeiro.");
+          }
+        }
+      },
+    });
 
     if (hasItems) {
       // Atualiza os itens com os KMs e valores individuais
@@ -374,8 +441,8 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
 
   const handleFaturar = (s: any) => {
     updateService.mutate({ id: s.id, status: "faturado" });
-    createTransaction.mutate({ type: "receita", amount: s.receita_bruta, description: `Receita OS ${s.data}`, date: s.data, status: "pendente", entity: "Órgão" });
-    createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, paid_amount: 0, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
+    createTransaction.mutate({ type: "receita", amount: s.receita_bruta, daily_service_id: s.id, description: `Receita OS ${s.data}`, date: s.data, status: "pendente", entity: "Órgão" });
+    createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, paid_amount: 0, daily_service_id: s.id, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
     toast.success("Faturado! Receita e despesa registradas.");
   };
 
