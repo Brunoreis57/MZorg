@@ -92,6 +92,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
   const [editingService, setEditingService] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showClose, setShowClose] = useState<string | null>(null);
+  const [keepFaturadoStatus, setKeepFaturadoStatus] = useState(false);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig>(defaultPricingConfig);
   const [showConfig, setShowConfig] = useState(false);
 
@@ -190,7 +191,8 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
 
   const selectedService = useMemo(() => services.find((s) => s.id === showClose), [services, showClose]);
 
-  const openCloseDialog = (s: any) => {
+  const openCloseDialog = (s: any, opts?: { keepStatus?: boolean }) => {
+    setKeepFaturadoStatus(!!opts?.keepStatus);
     const details: Record<string, any> = {};
     (s.daily_service_items || []).forEach((i: any) => {
       const saved = (i.paradas as any) || {};
@@ -349,7 +351,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
       impostos: imp,
       custo_fornecedor: totalCusto,
       lucro_liquido: totalReceita - imp - totalCusto,
-      status: "finalizado",
+      status: keepFaturadoStatus || selectedService?.status === "faturado" ? "faturado" : "finalizado",
       observacoes: closeForm.observacoes,
     };
 
@@ -366,13 +368,14 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
     }
 
     setShowClose(null);
-    toast.success(selectedService?.status === "finalizado" ? "Valores atualizados!" : "Serviço finalizado!");
+    setKeepFaturadoStatus(false);
+    toast.success(keepFaturadoStatus || selectedService?.status === "faturado" ? "Valores atualizados!" : selectedService?.status === "finalizado" ? "Valores atualizados!" : "Serviço finalizado!");
   };
 
   const handleFaturar = (s: any) => {
     updateService.mutate({ id: s.id, status: "faturado" });
     createTransaction.mutate({ type: "receita", amount: s.receita_bruta, description: `Receita OS ${s.data}`, date: s.data, status: "pendente", entity: "Órgão" });
-    createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
+    createTransaction.mutate({ type: "despesa", amount: s.custo_fornecedor, paid_amount: 0, description: `Custo fornecedor OS ${s.data}`, date: s.data, status: "pendente", entity: s.fornecedor_nome });
     toast.success("Faturado! Receita e despesa registradas.");
   };
 
@@ -585,6 +588,9 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
                             </div>
                             <div className="flex items-center gap-1">
                               <Badge variant="outline" className="bg-primary/10 text-primary"><Lock className="h-3 w-3 mr-1" />Faturado</Badge>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCloseDialog(s, { keepStatus: true })} title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(s.id)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -685,7 +691,7 @@ export function DailyServicesTab({ biddingId, wonData }: { biddingId: string; wo
       </Dialog>
 
       {/* Close Dialog */}
-      <Dialog open={!!showClose} onOpenChange={(open) => !open && setShowClose(null)}>
+      <Dialog open={!!showClose} onOpenChange={(open) => { if (!open) { setShowClose(null); setKeepFaturadoStatus(false); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Finalizar Serviço</DialogTitle><DialogDescription>Informe o KM rodado para calcular a rentabilidade.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">

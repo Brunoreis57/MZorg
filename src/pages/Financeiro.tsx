@@ -68,10 +68,10 @@ export default function Financeiro() {
   const [sheetType, setSheetType] = useState<"receita" | "despesa">("receita");
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
-  const [txForm, setTxForm] = useState({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
+  const [txForm, setTxForm] = useState({ amount: "", paid_amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
 
-  const paymentsList = payments || [];
-  const transactionsList = transactions || [];
+  const paymentsList: any[] = (payments as any[]) || [];
+  const transactionsList: any[] = (transactions as any[]) || [];
 
   const totalEntradas = transactionsList.filter((t) => t.type === "receita" && t.status === "pago").reduce((a, b) => a + Number(b.amount), 0);
   const totalSaidas = transactionsList.filter((t) => t.type === "despesa" && t.status === "pago").reduce((a, b) => a + Number(b.amount), 0);
@@ -88,7 +88,7 @@ export default function Financeiro() {
   }, [search, flowFilter, paymentsList]);
 
   const resetTxForm = () => {
-    setTxForm({ amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
+    setTxForm({ amount: "", paid_amount: "", description: "", date: new Date().toISOString().split("T")[0], entity: "", nf_number: "", category: "", status: "pendente" });
     setEditingTxId(null);
   };
 
@@ -103,6 +103,7 @@ export default function Financeiro() {
     setSheetType(tx.type === "despesa" ? "despesa" : "receita");
     setTxForm({
       amount: String(tx.amount ?? ""),
+      paid_amount: String(tx.paid_amount ?? ""),
       description: tx.description ?? "",
       date: tx.date ?? new Date().toISOString().split("T")[0],
       entity: tx.entity ?? "",
@@ -115,15 +116,23 @@ export default function Financeiro() {
 
   const handleSaveTransaction = () => {
     if (!txForm.amount || !txForm.description) { toast.error("Preencha valor e descrição."); return; }
+    const amountN = parseFloat(txForm.amount);
+    const paidN = txForm.paid_amount === "" ? 0 : parseFloat(txForm.paid_amount);
+    if (Number.isNaN(amountN) || amountN < 0) { toast.error("Valor inválido."); return; }
+    if (Number.isNaN(paidN) || paidN < 0) { toast.error("Valor pago inválido."); return; }
+    if (paidN > amountN) { toast.error("Valor pago não pode ser maior que o valor."); return; }
+
+    const computedStatus = paidN >= amountN ? "pago" : (txForm.status || "pendente");
     const payload = {
       type: sheetType === "receita" ? "receita" : "despesa",
-      amount: parseFloat(txForm.amount),
+      amount: amountN,
+      paid_amount: paidN,
       description: txForm.description,
       date: txForm.date,
       entity: txForm.entity,
       nf_number: txForm.nf_number || null,
       category: txForm.category || null,
-      status: txForm.status || "pendente",
+      status: computedStatus,
     };
     if (editingTxId) {
       updateTransaction.mutate(
@@ -169,6 +178,7 @@ export default function Financeiro() {
                 <div className="space-y-2"><Label>Entidade</Label><Input value={txForm.entity} onChange={(e) => setTxForm((p) => ({ ...p, entity: e.target.value }))} placeholder="Nome do órgão ou fornecedor" /></div>
                 <div className="space-y-2"><Label>Descrição</Label><Input value={txForm.description} onChange={(e) => setTxForm((p) => ({ ...p, description: e.target.value }))} /></div>
                 <div className="space-y-2"><Label>Valor (R$)</Label><Input type="number" value={txForm.amount} onChange={(e) => setTxForm((p) => ({ ...p, amount: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Valor Pago (R$)</Label><Input type="number" value={txForm.paid_amount} onChange={(e) => setTxForm((p) => ({ ...p, paid_amount: e.target.value }))} /></div>
                 <div className="space-y-2"><Label>Data</Label><Input type="date" value={txForm.date} onChange={(e) => setTxForm((p) => ({ ...p, date: e.target.value }))} /></div>
                 <div className="space-y-2">
                   <Label>Status</Label>
@@ -244,8 +254,21 @@ export default function Financeiro() {
                       <TableCell><Badge variant="outline" className={`text-[10px] ${t.type === "receita" ? "bg-success/10 text-success border-success/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>{t.type === "receita" ? "Receita" : "Despesa"}</Badge></TableCell>
                       <TableCell className="text-xs max-w-[200px] truncate">{t.description}</TableCell>
                       <TableCell className="text-xs">{t.entity}</TableCell>
-                      <TableCell className="text-xs font-mono font-medium text-right">{fmt(Number(t.amount))}</TableCell>
-                      <TableCell><Badge variant="outline" className={`text-[10px] ${paymentStatusColor(t.status)}`}>{paymentStatusLabel[t.status] || t.status}</Badge></TableCell>
+                      <TableCell className="text-xs font-mono font-medium text-right">
+                        {fmt(Number(t.amount))}
+                        {Number(t.paid_amount || 0) > 0 && Number(t.paid_amount || 0) < Number(t.amount || 0) && (
+                          <div className="text-[10px] text-muted-foreground font-normal">
+                            Pago: {fmt(Number(t.paid_amount))} • Em aberto: {fmt(Number(t.amount) - Number(t.paid_amount))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {Number(t.paid_amount || 0) > 0 && Number(t.paid_amount || 0) < Number(t.amount || 0) ? (
+                          <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20">Parcial</Badge>
+                        ) : (
+                          <Badge variant="outline" className={`text-[10px] ${paymentStatusColor(t.status)}`}>{paymentStatusLabel[t.status] || t.status}</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="pr-4">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEditTransaction(t)} title="Editar">
