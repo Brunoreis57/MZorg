@@ -150,6 +150,7 @@ export default function Editais() {
         city: edital.city,
         uf: edital.uf,
         portal: "Editais+",
+        portal_url: edital.url_origem || null,
         type: "Pregão Eletrônico",
         date: edital.date,
         time: edital.time || "00:00",
@@ -205,6 +206,7 @@ export default function Editais() {
                   <th className="table-header text-left">Órgão / Local</th>
                   <th className="table-header text-left">Data</th>
                   <th className="table-header text-left">Valor Est.</th>
+                  <th className="table-header text-center w-16">Link</th>
                   <th className="table-header text-center w-12">PDF</th>
                   <th className="table-header text-left">Status</th>
                   <th className="table-header text-right pr-4">Ações</th>
@@ -213,7 +215,7 @@ export default function Editais() {
               <tbody className="divide-y divide-border">
                 {(isLoading || isFetching) && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                       Carregando...
                     </td>
                   </tr>
@@ -221,7 +223,7 @@ export default function Editais() {
 
                 {!isLoading && !isFetching && items.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                       Nenhum edital encontrado
                     </td>
                   </tr>
@@ -268,6 +270,19 @@ export default function Editais() {
                         <div className="font-mono text-sm font-medium text-foreground">{fmtBRL(Number(edital.estimated_value || 0))}</div>
                       </td>
                       <td className="py-3 text-center">
+                        {edital.url_origem && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => window.open(edital.url_origem!, "_blank")}
+                            title="Abrir portal"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </td>
+                      <td className="py-3 text-center">
                         {edital.pdf_url && (
                           <Button
                             variant="ghost"
@@ -287,17 +302,6 @@ export default function Editais() {
                       </td>
                       <td className="py-3 pr-4 text-right">
                         <div className="flex justify-end gap-1">
-                          {edital.url_origem && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => window.open(edital.url_origem!, "_blank")}
-                              title="Ver site"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -399,7 +403,7 @@ export default function Editais() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Site (URL)</Label>
+                <Label>Link do Portal</Label>
                 <Input value={form.url_origem} onChange={(e) => setForm((p) => ({ ...p, url_origem: e.target.value }))} />
               </div>
             </div>

@@ -10,13 +10,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Building2, Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Shield, Plus, Save, Pencil, Trash2, Calendar, RefreshCw, Copy
+  Building2, Upload, FileText, AlertTriangle, CheckCircle2, XCircle, Shield, Plus, Save, Pencil, Trash2, Calendar, RefreshCw, Copy, Image as ImageIcon
 } from "lucide-react";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { LoadingButton } from "@/components/LoadingButton";
 import { toast } from "sonner";
-import { useEmpresas, useCreateEmpresa, useUpdateEmpresa, useDeleteEmpresa, useCertidoes, useDocumentos, useCreateDocumento, useCreateCertidao } from "@/hooks/useSupabaseData";
+import { useEmpresas, useCreateEmpresa, useUpdateEmpresa, useDeleteEmpresa, useCertidoes, useDocumentos, useCreateDocumento, useCreateCertidao, useDeleteDocumento } from "@/hooks/useSupabaseData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 function getCertidaoStatus(dataVencimento: string) {
   const hoje = new Date();
@@ -31,6 +32,7 @@ function EmpresaContent({ empresa }: { empresa: any }) {
     const updateEmpresa = useUpdateEmpresa();
     const deleteEmpresa = useDeleteEmpresa();
     const createDocumento = useCreateDocumento();
+    const deleteDocumento = useDeleteDocumento();
     const createCertidao = useCreateCertidao();
     const { data: certidoes = [] } = useCertidoes(empresa.id);
     const { data: documentos = [] } = useDocumentos(empresa.id);
@@ -40,11 +42,19 @@ function EmpresaContent({ empresa }: { empresa: any }) {
     
     // Dialogs
     const [docDialogOpen, setDocDialogOpen] = useState(false);
+    const [imgDialogOpen, setImgDialogOpen] = useState(false);
     const [certidaoDialogOpen, setCertidaoDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [newItem, setNewItem] = useState<any>({});
+    const [docFile, setDocFile] = useState<File | null>(null);
+    const [imgFile, setImgFile] = useState<File | null>(null);
+    const [uploadingDoc, setUploadingDoc] = useState(false);
+    const [uploadingImg, setUploadingImg] = useState(false);
 
     useEffect(() => { setForm(empresa); }, [empresa]);
+
+    const docsList = (documentos as any[]).filter((d) => (d.tipo || "documento") === "documento");
+    const imagesList = (documentos as any[]).filter((d) => (d.tipo || "documento") !== "documento");
 
     const handleSave = () => {
         updateEmpresa.mutate({ id: empresa.id, ...form });
@@ -60,14 +70,76 @@ function EmpresaContent({ empresa }: { empresa: any }) {
         });
     };
 
-    const handleCreateDoc = () => {
-        if(!newItem.nome) return toast.error("Nome obrigatório");
-        createDocumento.mutate({
-            empresa_id: empresa.id,
-            nome: newItem.nome,
-            tipo: "documento",
-            // url: ... (upload logic would go here)
-        }, { onSuccess: () => { setDocDialogOpen(false); setNewItem({}); } });
+    const uploadEmpresaFile = async (file: File, folder: string) => {
+      const ext = file.name.split(".").pop() || "bin";
+      const name = `empresas/${empresa.id}/${folder}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("documents").upload(name, file, { upsert: false, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("documents").getPublicUrl(name);
+      return data.publicUrl;
+    };
+
+    const handleCreateDoc = async () => {
+        if (!newItem.nome) return toast.error("Nome obrigatório");
+        if (!docFile) return toast.error("Selecione um arquivo");
+        setUploadingDoc(true);
+        try {
+          const url = await uploadEmpresaFile(docFile, "documentos");
+          await new Promise<void>((resolve, reject) => {
+            createDocumento.mutate(
+              {
+                empresa_id: empresa.id,
+                nome: newItem.nome,
+                tipo: "documento",
+                arquivo_url: url,
+                data_upload: new Date().toISOString().split("T")[0],
+              },
+              {
+                onSuccess: () => resolve(),
+                onError: (e: any) => reject(e),
+              }
+            );
+          });
+          setDocDialogOpen(false);
+          setNewItem({});
+          setDocFile(null);
+        } catch (e: any) {
+          toast.error(e?.message || "Erro ao enviar arquivo. Verifique o bucket 'documents'.");
+        } finally {
+          setUploadingDoc(false);
+        }
+    };
+
+    const handleCreateImg = async () => {
+      const tipo = (newItem.img_tipo || "imagem") as string;
+      const nome = (newItem.img_nome || (tipo === "logo" ? "Logo" : "Imagem")) as string;
+      if (!imgFile) return toast.error("Selecione uma imagem");
+      setUploadingImg(true);
+      try {
+        const url = await uploadEmpresaFile(imgFile, "imagens");
+        await new Promise<void>((resolve, reject) => {
+          createDocumento.mutate(
+            {
+              empresa_id: empresa.id,
+              nome,
+              tipo,
+              arquivo_url: url,
+              data_upload: new Date().toISOString().split("T")[0],
+            },
+            {
+              onSuccess: () => resolve(),
+              onError: (e: any) => reject(e),
+            }
+          );
+        });
+        setImgDialogOpen(false);
+        setNewItem((p: any) => ({ ...p, img_nome: "", img_tipo: "imagem" }));
+        setImgFile(null);
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao enviar imagem. Verifique o bucket 'documents'.");
+      } finally {
+        setUploadingImg(false);
+      }
     };
 
     const handleCreateCertidao = () => {
@@ -137,7 +209,8 @@ function EmpresaContent({ empresa }: { empresa: any }) {
                 <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
                     <TabsTrigger value="dados" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Dados Gerais</TabsTrigger>
                     <TabsTrigger value="certidoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Certidões ({certidoes.length})</TabsTrigger>
-                    <TabsTrigger value="documentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Documentos ({documentos.length})</TabsTrigger>
+                    <TabsTrigger value="documentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Documentos ({docsList.length})</TabsTrigger>
+                    <TabsTrigger value="imagens" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Imagens ({imagesList.length})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="dados" className="mt-6 space-y-6">
@@ -211,12 +284,12 @@ function EmpresaContent({ empresa }: { empresa: any }) {
                     <div className="flex justify-end">
                         <Button size="sm" onClick={() => setDocDialogOpen(true)} className="gap-2"><Upload className="h-4 w-4"/> Novo Documento</Button>
                     </div>
-                    {documentos.length === 0 ? (
+                    {docsList.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">Nenhum documento cadastrado</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             {documentos.map((d: any) => (
-                                 <Card key={d.id} className="hover:bg-muted/50 cursor-pointer transition-colors">
+                             {docsList.map((d: any) => (
+                                 <Card key={d.id} className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => d.arquivo_url && window.open(d.arquivo_url, "_blank")}>
                                      <CardContent className="p-4 flex items-center gap-3">
                                          <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center text-primary">
                                              <FileText className="h-5 w-5" />
@@ -225,11 +298,68 @@ function EmpresaContent({ empresa }: { empresa: any }) {
                                              <p className="font-medium truncate">{d.nome}</p>
                                              <p className="text-xs text-muted-foreground">{format(parseISO(d.created_at), "dd/MM/yyyy HH:mm")}</p>
                                          </div>
+                                         <Button
+                                           variant="ghost"
+                                           size="icon"
+                                           className="h-8 w-8 text-destructive"
+                                           onClick={(e) => {
+                                             e.stopPropagation();
+                                             deleteDocumento.mutate(d.id);
+                                           }}
+                                           title="Excluir"
+                                         >
+                                           <Trash2 className="h-4 w-4" />
+                                         </Button>
                                      </CardContent>
                                  </Card>
                              ))}
                         </div>
                     )}
+                </TabsContent>
+
+                <TabsContent value="imagens" className="mt-6 space-y-4">
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={() => setImgDialogOpen(true)} className="gap-2"><Upload className="h-4 w-4" /> Nova Imagem</Button>
+                  </div>
+                  {imagesList.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed bg-muted/20">Nenhuma imagem cadastrada</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {imagesList.map((img: any) => (
+                        <Card key={img.id} className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => img.arquivo_url && window.open(img.arquivo_url, "_blank")}>
+                          <CardContent className="p-4 space-y-3">
+                            <div className="aspect-video rounded-md overflow-hidden bg-muted border">
+                              {img.arquivo_url ? (
+                                <img src={img.arquivo_url} alt={img.nome} className="h-full w-full object-contain" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                                  <ImageIcon className="h-6 w-6" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{img.nome}</p>
+                                <p className="text-xs text-muted-foreground">{(img.tipo || "imagem").toUpperCase()}</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteDocumento.mutate(img.id);
+                                }}
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
             </Tabs>
 
@@ -239,13 +369,43 @@ function EmpresaContent({ empresa }: { empresa: any }) {
                     <DialogHeader><DialogTitle>Adicionar Documento</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-2"><Label>Nome do Documento</Label><Input value={newItem.nome || ""} onChange={e => setNewItem({...newItem, nome: e.target.value})} /></div>
-                        {/* Upload logic here */}
+                        <div className="space-y-2">
+                          <Label>Arquivo</Label>
+                          <Input type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setDocDialogOpen(false)}>Cancelar</Button>
-                        <LoadingButton onClick={handleCreateDoc} loading={createDocumento.isPending}>Salvar</LoadingButton>
+                        <LoadingButton onClick={handleCreateDoc} loading={createDocumento.isPending || uploadingDoc}>Salvar</LoadingButton>
                     </DialogFooter>
                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={imgDialogOpen} onOpenChange={setImgDialogOpen}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Adicionar Imagem</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Tipo</Label>
+                    <div className="flex gap-2">
+                      <Button variant={(newItem.img_tipo || "imagem") === "imagem" ? "default" : "outline"} size="sm" onClick={() => setNewItem((p: any) => ({ ...p, img_tipo: "imagem" }))}>Imagem</Button>
+                      <Button variant={(newItem.img_tipo || "imagem") === "logo" ? "default" : "outline"} size="sm" onClick={() => setNewItem((p: any) => ({ ...p, img_tipo: "logo" }))}>Logo</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nome (opcional)</Label>
+                    <Input value={newItem.img_nome || ""} onChange={(e) => setNewItem((p: any) => ({ ...p, img_nome: e.target.value }))} placeholder="Ex: Logo principal" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Arquivo (PNG/JPG)</Label>
+                    <Input type="file" accept="image/*" onChange={(e) => setImgFile(e.target.files?.[0] || null)} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setImgDialogOpen(false)}>Cancelar</Button>
+                  <LoadingButton onClick={handleCreateImg} loading={createDocumento.isPending || uploadingImg}>Salvar</LoadingButton>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
 
             <Dialog open={certidaoDialogOpen} onOpenChange={setCertidaoDialogOpen}>

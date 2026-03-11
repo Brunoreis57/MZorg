@@ -51,6 +51,7 @@ const emptyForm = {
   code: "", object: "", entity: "", city: "", uf: "", portal: "ComprasNet",
   estimated_value: 0, won_value: 0, date: "", time: "09:00", status: "Em Análise", type: "Pregão Eletrônico",
   attachment_url: "",
+  portal_url: "",
 };
 
 function formatBRL(value: number) {
@@ -106,6 +107,7 @@ export default function Licitacoes() {
       portal: bid.portal, estimated_value: bid.estimated_value, won_value: (bid as any).won_value || 0, date: bid.date,
       time: bid.time, status: bid.status, type: bid.type,
       attachment_url: (bid as any).attachment_url || "",
+      portal_url: (bid as any).portal_url || "",
     });
     setDialogOpen(true);
   }
@@ -239,6 +241,7 @@ export default function Licitacoes() {
                   <tr>
                     <th className="table-header text-left pl-4">Código / Objeto</th>
                     <th className="table-header text-left">Órgão / Local</th>
+                    <th className="table-header text-center w-16">Link</th>
                     <th className="table-header text-left">Data</th>
                     <th className="table-header text-left">Valor Est.</th>
                     <th className="table-header text-left">Valor Ganho</th>
@@ -250,7 +253,7 @@ export default function Licitacoes() {
                 <tbody className="divide-y divide-border">
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                      <td colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                         Nenhuma licitação encontrada
                       </td>
                     </tr>
@@ -264,6 +267,22 @@ export default function Licitacoes() {
                       <td className="py-3">
                         <div className="text-sm text-foreground flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {bid.entity}</div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin className="h-3 w-3" /> {(bid.city || "").toUpperCase()}/{(bid.uf || "").toUpperCase()}</div>
+                      </td>
+                      <td className="py-3 text-center">
+                        {(bid as any).portal_url && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open((bid as any).portal_url, "_blank");
+                            }}
+                            title="Abrir portal"
+                          >
+                            <LinkIcon className="h-4 w-4" />
+                          </Button>
+                        )}
                       </td>
                       <td className="py-3">
                         <div className="text-sm text-foreground flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /> {format(parseISO(bid.date), "dd/MM/yy")}</div>
@@ -424,6 +443,10 @@ export default function Licitacoes() {
                   <SelectItem value="Portal de Compras">Portal de Compras</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Link do Portal</Label>
+              <Input value={(form as any).portal_url} onChange={(e) => updateForm("portal_url", e.target.value)} placeholder="https://..." />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Cidade</Label>
