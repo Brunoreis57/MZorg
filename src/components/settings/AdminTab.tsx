@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingButton } from "@/components/LoadingButton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Shield,
   UserPlus,
@@ -86,6 +87,11 @@ export function AdminTab() {
   const [newPassword, setNewPassword] = useState("");
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [resetPwOpen, setResetPwOpen] = useState(false);
+  const [resetPwUser, setResetPwUser] = useState<ProfileEntry | null>(null);
+  const [resetPw1, setResetPw1] = useState("");
+  const [resetPw2, setResetPw2] = useState("");
+  const [resettingPw, setResettingPw] = useState(false);
 
   const fetchFinanceAccess = async () => {
     const { data, error } = await (supabase as any)
@@ -219,8 +225,65 @@ export function AdminTab() {
     }
   };
 
+  const openResetPassword = (u: ProfileEntry) => {
+    setResetPwUser(u);
+    setResetPw1("");
+    setResetPw2("");
+    setResetPwOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPwUser) return;
+    if (!resetPw1 || resetPw1.length < 6) {
+      toast({ title: "A senha deve ter pelo menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+    if (resetPw1 !== resetPw2) {
+      toast({ title: "As senhas não coincidem", variant: "destructive" });
+      return;
+    }
+
+    setResettingPw(true);
+    const { error } = await (supabase as any).functions.invoke("admin-set-user-password", {
+      body: { user_id: resetPwUser.user_id, password: resetPw1 },
+    });
+    if (error) {
+      toast({ title: "Erro ao redefinir senha", description: error.message, variant: "destructive" });
+      setResettingPw(false);
+      return;
+    }
+    setResettingPw(false);
+    setResetPwOpen(false);
+    toast({ title: "Senha redefinida", description: resetPwUser.email });
+  };
+
   return (
     <div className="space-y-6">
+      <Dialog open={resetPwOpen} onOpenChange={setResetPwOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Redefinir senha</DialogTitle>
+            <DialogDescription>{resetPwUser?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova senha</Label>
+              <Input type="password" value={resetPw1} onChange={(e) => setResetPw1(e.target.value)} placeholder="Mín. 6 caracteres" />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirmar nova senha</Label>
+              <Input type="password" value={resetPw2} onChange={(e) => setResetPw2(e.target.value)} placeholder="Repita a senha" />
+            </div>
+          </div>
+          <DialogFooter>
+            <LoadingButton loading={resettingPw} onClick={handleResetPassword} className="gap-2">
+              <Lock className="h-4 w-4" />
+              Salvar
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -340,6 +403,9 @@ export function AdminTab() {
                 <Badge variant="secondary" className="text-xs">
                   {u.role_label}
                 </Badge>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openResetPassword(u)} title="Redefinir senha">
+                  <Lock className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ))}
